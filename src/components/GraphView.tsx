@@ -22,6 +22,7 @@ const GraphView: React.FC<GraphViewProps> = ({
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   
   // Filter nodes based on domain and time range
   const filteredNodes = nodes.filter(node => 
@@ -36,26 +37,23 @@ const GraphView: React.FC<GraphViewProps> = ({
     return sourceNode && targetNode;
   });
 
-  // Node positioning - Simple force-based layout simulation
+  // Calculate static node positions based on time and domain
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number, y: number }>>({});
 
   useEffect(() => {
-    // Initialize node positions based on time (horizontal) and domain (vertical)
-    const timeSpan = timeRange[1] - timeRange[0];
     const positions: Record<string, { x: number, y: number }> = {};
+    const timeSpan = timeRange[1] - timeRange[0];
+    const domainCount = Object.keys(TechnologyDomain).length;
+    const baseSpacing = 200; // Increased spacing between nodes
     
     filteredNodes.forEach(node => {
-      const timePosition = (node.year - timeRange[0]) / (timeSpan || 1);
+      const timePosition = (node.year - timeRange[0]) / timeSpan;
       const domainIndex = Object.values(TechnologyDomain).indexOf(node.domain);
-      const domainOffset = domainIndex / Object.values(TechnologyDomain).length;
       
-      // Add some randomness to prevent exact overlaps
-      const randX = Math.random() * 0.1 - 0.05;
-      const randY = Math.random() * 0.2 - 0.1;
-      
+      // Calculate position with fixed offsets
       positions[node.id] = {
-        x: 100 + timePosition * 800 + randX * 800,
-        y: 100 + domainOffset * 400 + randY * 400
+        x: 100 + timePosition * (window.innerWidth - 300), // Adjust for screen width
+        y: 100 + (domainIndex / domainCount) * (window.innerHeight - 300) // Adjust for screen height
       };
     });
     
@@ -74,7 +72,7 @@ const GraphView: React.FC<GraphViewProps> = ({
 
   // Handle drag
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Left click only
+    if (e.button === 0) {
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
     }
@@ -100,14 +98,14 @@ const GraphView: React.FC<GraphViewProps> = ({
   // Get color based on domain
   const getDomainColor = (domain: TechnologyDomain) => {
     const colors: Record<TechnologyDomain, string> = {
-      [TechnologyDomain.COMPUTING]: '#3B82F6', // Blue
-      [TechnologyDomain.ENERGY]: '#10B981', // Green
-      [TechnologyDomain.TRANSPORTATION]: '#F59E0B', // Amber
-      [TechnologyDomain.MEDICINE]: '#EC4899', // Pink
-      [TechnologyDomain.COMMUNICATION]: '#8B5CF6', // Purple
-      [TechnologyDomain.MATERIALS]: '#6366F1', // Indigo
-      [TechnologyDomain.AI]: '#EF4444', // Red
-      [TechnologyDomain.SPACE]: '#0EA5E9'  // Sky blue
+      [TechnologyDomain.COMPUTING]: '#3B82F6',
+      [TechnologyDomain.ENERGY]: '#10B981',
+      [TechnologyDomain.TRANSPORTATION]: '#F59E0B',
+      [TechnologyDomain.MEDICINE]: '#EC4899',
+      [TechnologyDomain.COMMUNICATION]: '#8B5CF6',
+      [TechnologyDomain.MATERIALS]: '#6366F1',
+      [TechnologyDomain.AI]: '#EF4444',
+      [TechnologyDomain.SPACE]: '#0EA5E9'
     };
     return colors[domain];
   };
@@ -139,7 +137,6 @@ const GraphView: React.FC<GraphViewProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Background grid for reference */}
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0, 0, 0, 0.05)" strokeWidth="0.5" />
@@ -155,6 +152,8 @@ const GraphView: React.FC<GraphViewProps> = ({
             
             if (!source || !target) return null;
             
+            const isHighlighted = hoveredNode && (edge.source === hoveredNode || edge.target === hoveredNode);
+            
             return (
               <line
                 key={`${edge.source}-${edge.target}`}
@@ -162,8 +161,9 @@ const GraphView: React.FC<GraphViewProps> = ({
                 y1={source.y}
                 x2={target.x}
                 y2={target.y}
-                stroke="rgba(0, 0, 0, 0.2)"
-                strokeWidth={1}
+                stroke={isHighlighted ? "rgba(59, 130, 246, 0.5)" : "rgba(0, 0, 0, 0.2)"}
+                strokeWidth={isHighlighted ? 2 : 1}
+                className="transition-all duration-300"
                 markerEnd="url(#arrowhead)"
               />
             );
@@ -191,20 +191,23 @@ const GraphView: React.FC<GraphViewProps> = ({
             const color = getDomainColor(node.domain);
             const nodeStyle = getNodeStyle(node.status);
             const isSelected = selectedNode?.id === node.id;
+            const isHovered = hoveredNode === node.id;
             
             return (
               <g 
                 key={node.id}
                 transform={`translate(${position.x}, ${position.y})`}
                 onClick={() => onNodeSelect(node)}
-                className="cursor-pointer transition-transform duration-200 hover:scale-110"
+                onMouseEnter={() => setHoveredNode(node.id)}
+                onMouseLeave={() => setHoveredNode(null)}
+                className="cursor-pointer"
               >
                 <circle
-                  r={isSelected ? 25 : 20}
+                  r={isSelected || isHovered ? 25 : 20}
                   fill={color}
                   fillOpacity={nodeStyle.opacity}
-                  stroke={isSelected ? "#000" : color}
-                  strokeWidth={isSelected ? 3 : nodeStyle.strokeWidth}
+                  stroke={isSelected || isHovered ? "#000" : color}
+                  strokeWidth={isSelected || isHovered ? 3 : nodeStyle.strokeWidth}
                   strokeDasharray={nodeStyle.strokeDasharray}
                   className="transition-all duration-300"
                 />
@@ -212,9 +215,10 @@ const GraphView: React.FC<GraphViewProps> = ({
                   textAnchor="middle"
                   dy="5"
                   fill="#fff"
-                  fontSize={isSelected ? "12px" : "10px"}
-                  fontWeight={isSelected ? "bold" : "normal"}
+                  fontSize={isSelected || isHovered ? "12px" : "10px"}
+                  fontWeight={isSelected || isHovered ? "bold" : "normal"}
                   pointerEvents="none"
+                  className="transition-all duration-300"
                 >
                   {node.label.length > 15 ? `${node.label.substring(0, 12)}...` : node.label}
                 </text>
