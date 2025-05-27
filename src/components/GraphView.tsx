@@ -44,16 +44,15 @@ const GraphView: React.FC<GraphViewProps> = ({
     const positions: Record<string, { x: number, y: number }> = {};
     const timeSpan = timeRange[1] - timeRange[0];
     const domainCount = Object.keys(TechnologyDomain).length;
-    const baseSpacing = 200; // Increased spacing between nodes
+    const baseSpacing = 300; // Increased spacing between nodes
     
     filteredNodes.forEach(node => {
       const timePosition = (node.year - timeRange[0]) / timeSpan;
       const domainIndex = Object.values(TechnologyDomain).indexOf(node.domain);
       
-      // Calculate position with fixed offsets
       positions[node.id] = {
-        x: 100 + timePosition * (window.innerWidth - 300), // Adjust for screen width
-        y: 100 + (domainIndex / domainCount) * (window.innerHeight - 300) // Adjust for screen height
+        x: baseSpacing + timePosition * (window.innerWidth - baseSpacing * 2),
+        y: baseSpacing + (domainIndex / (domainCount - 1)) * (window.innerHeight - baseSpacing * 2)
       };
     });
     
@@ -114,15 +113,15 @@ const GraphView: React.FC<GraphViewProps> = ({
   const getNodeStyle = (status: NodeStatus) => {
     switch (status) {
       case NodeStatus.HISTORICAL:
-        return { opacity: 0.9, strokeWidth: 1 };
+        return { opacity: 0.9, strokeWidth: 2 };
       case NodeStatus.CURRENT:
-        return { opacity: 1, strokeWidth: 2 };
+        return { opacity: 1, strokeWidth: 3 };
       case NodeStatus.EMERGING:
-        return { opacity: 0.8, strokeWidth: 1, strokeDasharray: '3' };
+        return { opacity: 0.8, strokeWidth: 2, strokeDasharray: '6' };
       case NodeStatus.THEORETICAL:
-        return { opacity: 0.6, strokeWidth: 1, strokeDasharray: '5' };
+        return { opacity: 0.7, strokeWidth: 2, strokeDasharray: '8' };
       default:
-        return { opacity: 1, strokeWidth: 1 };
+        return { opacity: 1, strokeWidth: 2 };
     }
   };
 
@@ -141,7 +140,26 @@ const GraphView: React.FC<GraphViewProps> = ({
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0, 0, 0, 0.05)" strokeWidth="0.5" />
           </pattern>
+          
+          {/* Gradient for edges */}
+          <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(59, 130, 246, 0.6)" />
+            <stop offset="100%" stopColor="rgba(59, 130, 246, 0.2)" />
+          </linearGradient>
+          
+          {/* Enhanced arrow marker */}
+          <marker
+            id="arrowhead"
+            markerWidth="12"
+            markerHeight="8"
+            refX="10"
+            refY="4"
+            orient="auto"
+          >
+            <path d="M0,0 L12,4 L0,8" fill="rgba(59, 130, 246, 0.6)" />
+          </marker>
         </defs>
+        
         <rect width="100%" height="100%" fill="url(#grid)" />
         
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
@@ -161,27 +179,13 @@ const GraphView: React.FC<GraphViewProps> = ({
                 y1={source.y}
                 x2={target.x}
                 y2={target.y}
-                stroke={isHighlighted ? "rgba(59, 130, 246, 0.5)" : "rgba(0, 0, 0, 0.2)"}
-                strokeWidth={isHighlighted ? 2 : 1}
+                stroke={isHighlighted ? "url(#edgeGradient)" : "rgba(59, 130, 246, 0.3)"}
+                strokeWidth={isHighlighted ? 3 : 2}
                 className="transition-all duration-300"
                 markerEnd="url(#arrowhead)"
               />
             );
           })}
-          
-          {/* Arrow marker for edges */}
-          <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 0, 0, 0.2)" />
-            </marker>
-          </defs>
           
           {/* Render nodes */}
           {filteredNodes.map(node => {
@@ -192,6 +196,7 @@ const GraphView: React.FC<GraphViewProps> = ({
             const nodeStyle = getNodeStyle(node.status);
             const isSelected = selectedNode?.id === node.id;
             const isHovered = hoveredNode === node.id;
+            const baseRadius = 30; // Increased base radius
             
             return (
               <g 
@@ -202,33 +207,50 @@ const GraphView: React.FC<GraphViewProps> = ({
                 onMouseLeave={() => setHoveredNode(null)}
                 className="cursor-pointer"
               >
+                {/* Node background glow for hover/select */}
+                {(isSelected || isHovered) && (
+                  <circle
+                    r={baseRadius + 8}
+                    fill={color}
+                    opacity={0.2}
+                    className="transition-all duration-300"
+                  />
+                )}
+                
+                {/* Main node circle */}
                 <circle
-                  r={isSelected || isHovered ? 25 : 20}
+                  r={isSelected || isHovered ? baseRadius + 4 : baseRadius}
                   fill={color}
                   fillOpacity={nodeStyle.opacity}
                   stroke={isSelected || isHovered ? "#000" : color}
-                  strokeWidth={isSelected || isHovered ? 3 : nodeStyle.strokeWidth}
+                  strokeWidth={nodeStyle.strokeWidth}
                   strokeDasharray={nodeStyle.strokeDasharray}
                   className="transition-all duration-300"
                 />
+                
+                {/* Node label */}
                 <text
                   textAnchor="middle"
-                  dy="5"
+                  dy="-2"
                   fill="#fff"
-                  fontSize={isSelected || isHovered ? "12px" : "10px"}
+                  fontSize={isSelected || isHovered ? "14px" : "12px"}
                   fontWeight={isSelected || isHovered ? "bold" : "normal"}
                   pointerEvents="none"
                   className="transition-all duration-300"
+                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
                 >
                   {node.label.length > 15 ? `${node.label.substring(0, 12)}...` : node.label}
                 </text>
+                
+                {/* Year label */}
                 <text
                   textAnchor="middle"
-                  dy="20"
-                  fontSize="9px"
+                  dy="16"
+                  fontSize="11px"
                   fill="#fff"
-                  opacity="0.8"
+                  opacity="0.9"
                   pointerEvents="none"
+                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
                 >
                   {node.year}
                 </text>
