@@ -44,32 +44,58 @@ const GraphView: React.FC<GraphViewProps> = ({
     const positions: Record<string, { x: number, y: number }> = {};
     const timeSpan = timeRange[1] - timeRange[0];
     const domainCount = Object.keys(TechnologyDomain).length;
-    const baseSpacing = 300; // Increased spacing between nodes
+    
+    // Create a larger virtual canvas
+    const virtualWidth = Math.max(window.innerWidth * 3, 3000);
+    const virtualHeight = Math.max(window.innerHeight * 3, 2000);
+    const padding = 200;
     
     filteredNodes.forEach(node => {
       const timePosition = (node.year - timeRange[0]) / timeSpan;
       const domainIndex = Object.values(TechnologyDomain).indexOf(node.domain);
       
+      // Add some controlled randomness to prevent exact alignment
+      const randomOffset = {
+        x: (Math.random() - 0.5) * 200,
+        y: (Math.random() - 0.5) * 100
+      };
+      
       positions[node.id] = {
-        x: baseSpacing + timePosition * (window.innerWidth - baseSpacing * 2),
-        y: baseSpacing + (domainIndex / (domainCount - 1)) * (window.innerHeight - baseSpacing * 2)
+        x: padding + timePosition * (virtualWidth - padding * 2) + randomOffset.x,
+        y: padding + (domainIndex / (domainCount - 1)) * (virtualHeight - padding * 2) + randomOffset.y
       };
     });
     
     setNodePositions(positions);
+    
+    // Reset transform to show the center of the virtual canvas
+    setTransform({
+      x: (window.innerWidth - virtualWidth) / 2,
+      y: (window.innerHeight - virtualHeight) / 2,
+      scale: 0.5
+    });
   }, [filteredNodes, timeRange]);
 
-  // Handle zoom
+  // Handle zoom with improved scaling
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const scaleAmount = e.deltaY < 0 ? 1.1 : 0.9;
+    const scaleAmount = e.deltaY < 0 ? 1.2 : 0.8;
+    const pointer = {
+      x: e.clientX - transform.x,
+      y: e.clientY - transform.y
+    };
+    
+    const newScale = Math.max(0.2, Math.min(2, transform.scale * scaleAmount));
+    const scaleRatio = newScale / transform.scale;
+    
     setTransform(prev => ({
-      ...prev,
-      scale: Math.max(0.5, Math.min(3, prev.scale * scaleAmount))
+      scale: newScale,
+      x: e.clientX - pointer.x * scaleRatio,
+      y: e.clientY - pointer.y * scaleRatio
     }));
   };
 
-  // Handle drag
+  // Handle drag with improved smoothness
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
@@ -113,15 +139,15 @@ const GraphView: React.FC<GraphViewProps> = ({
   const getNodeStyle = (status: NodeStatus) => {
     switch (status) {
       case NodeStatus.HISTORICAL:
-        return { opacity: 0.9, strokeWidth: 2 };
+        return { opacity: 0.9, strokeWidth: 3 };
       case NodeStatus.CURRENT:
-        return { opacity: 1, strokeWidth: 3 };
+        return { opacity: 1, strokeWidth: 4 };
       case NodeStatus.EMERGING:
-        return { opacity: 0.8, strokeWidth: 2, strokeDasharray: '6' };
+        return { opacity: 0.8, strokeWidth: 3, strokeDasharray: '8' };
       case NodeStatus.THEORETICAL:
-        return { opacity: 0.7, strokeWidth: 2, strokeDasharray: '8' };
+        return { opacity: 0.7, strokeWidth: 3, strokeDasharray: '10' };
       default:
-        return { opacity: 1, strokeWidth: 2 };
+        return { opacity: 1, strokeWidth: 3 };
     }
   };
 
@@ -137,26 +163,24 @@ const GraphView: React.FC<GraphViewProps> = ({
         onMouseLeave={handleMouseUp}
       >
         <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0, 0, 0, 0.05)" strokeWidth="0.5" />
+          <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(0, 0, 0, 0.05)" strokeWidth="0.5" />
           </pattern>
           
-          {/* Gradient for edges */}
           <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(59, 130, 246, 0.6)" />
-            <stop offset="100%" stopColor="rgba(59, 130, 246, 0.2)" />
+            <stop offset="0%" stopColor="rgba(59, 130, 246, 0.8)" />
+            <stop offset="100%" stopColor="rgba(59, 130, 246, 0.3)" />
           </linearGradient>
           
-          {/* Enhanced arrow marker */}
           <marker
             id="arrowhead"
-            markerWidth="12"
-            markerHeight="8"
-            refX="10"
-            refY="4"
+            markerWidth="16"
+            markerHeight="12"
+            refX="12"
+            refY="6"
             orient="auto"
           >
-            <path d="M0,0 L12,4 L0,8" fill="rgba(59, 130, 246, 0.6)" />
+            <path d="M0,0 L16,6 L0,12" fill="rgba(59, 130, 246, 0.8)" />
           </marker>
         </defs>
         
@@ -179,8 +203,8 @@ const GraphView: React.FC<GraphViewProps> = ({
                 y1={source.y}
                 x2={target.x}
                 y2={target.y}
-                stroke={isHighlighted ? "url(#edgeGradient)" : "rgba(59, 130, 246, 0.3)"}
-                strokeWidth={isHighlighted ? 3 : 2}
+                stroke={isHighlighted ? "url(#edgeGradient)" : "rgba(59, 130, 246, 0.4)"}
+                strokeWidth={isHighlighted ? 4 : 3}
                 className="transition-all duration-300"
                 markerEnd="url(#arrowhead)"
               />
@@ -196,7 +220,7 @@ const GraphView: React.FC<GraphViewProps> = ({
             const nodeStyle = getNodeStyle(node.status);
             const isSelected = selectedNode?.id === node.id;
             const isHovered = hoveredNode === node.id;
-            const baseRadius = 30; // Increased base radius
+            const baseRadius = 40; // Increased base radius
             
             return (
               <g 
@@ -207,10 +231,10 @@ const GraphView: React.FC<GraphViewProps> = ({
                 onMouseLeave={() => setHoveredNode(null)}
                 className="cursor-pointer"
               >
-                {/* Node background glow for hover/select */}
+                {/* Node background glow */}
                 {(isSelected || isHovered) && (
                   <circle
-                    r={baseRadius + 8}
+                    r={baseRadius + 12}
                     fill={color}
                     opacity={0.2}
                     className="transition-all duration-300"
@@ -219,7 +243,7 @@ const GraphView: React.FC<GraphViewProps> = ({
                 
                 {/* Main node circle */}
                 <circle
-                  r={isSelected || isHovered ? baseRadius + 4 : baseRadius}
+                  r={isSelected || isHovered ? baseRadius + 6 : baseRadius}
                   fill={color}
                   fillOpacity={nodeStyle.opacity}
                   stroke={isSelected || isHovered ? "#000" : color}
@@ -231,26 +255,26 @@ const GraphView: React.FC<GraphViewProps> = ({
                 {/* Node label */}
                 <text
                   textAnchor="middle"
-                  dy="-2"
+                  dy="-4"
                   fill="#fff"
-                  fontSize={isSelected || isHovered ? "14px" : "12px"}
+                  fontSize={isSelected || isHovered ? "18px" : "16px"}
                   fontWeight={isSelected || isHovered ? "bold" : "normal"}
                   pointerEvents="none"
                   className="transition-all duration-300"
-                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+                  style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
                 >
-                  {node.label.length > 15 ? `${node.label.substring(0, 12)}...` : node.label}
+                  {node.label.length > 20 ? `${node.label.substring(0, 17)}...` : node.label}
                 </text>
                 
                 {/* Year label */}
                 <text
                   textAnchor="middle"
-                  dy="16"
-                  fontSize="11px"
+                  dy="20"
+                  fontSize="14px"
                   fill="#fff"
                   opacity="0.9"
                   pointerEvents="none"
-                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+                  style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
                 >
                   {node.year}
                 </text>
@@ -263,20 +287,20 @@ const GraphView: React.FC<GraphViewProps> = ({
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-2 flex flex-col">
         <button 
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-xl font-bold"
           onClick={() => setTransform(prev => ({ ...prev, scale: prev.scale * 1.2 }))}
         >
           +
         </button>
         <button 
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-          onClick={() => setTransform(prev => ({ ...prev, scale: Math.max(0.5, prev.scale / 1.2) }))}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-xl font-bold"
+          onClick={() => setTransform(prev => ({ ...prev, scale: Math.max(0.2, prev.scale / 1.2) }))}
         >
           -
         </button>
         <button 
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded mt-2"
-          onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded mt-2 text-sm"
+          onClick={() => setTransform({ x: 0, y: 0, scale: 0.5 })}
         >
           Reset
         </button>
