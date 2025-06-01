@@ -1,4 +1,4 @@
-import { GraphData, Node, NodeStatus, TechnologyDomain } from "../types";
+import { Edge, GraphData, Node, NodeStatus, TechnologyDomain } from "../types";
 
 // Initial dataset for the knowledge graph
 export const initialData: GraphData = {
@@ -106,6 +106,50 @@ export const initialData: GraphData = {
       domain: TechnologyDomain.COMPUTING,
       status: NodeStatus.EMERGING,
       links: ["microprocessor"]
+    },
+    {
+      id: "assembly-language",
+      label: "Assembly Language",
+      description: "A low-level programming language with symbolic code closely related to machine code.",
+      year: 1949,
+      domain: TechnologyDomain.COMPUTING,
+      status: NodeStatus.HISTORICAL
+    },
+    {
+      id: "c-language",
+      label: "C Programming Language",
+      description: "A general-purpose programming language that became the foundation for many modern languages.",
+      year: 1972,
+      domain: TechnologyDomain.COMPUTING,
+      status: NodeStatus.HISTORICAL,
+      links: ["assembly-language"]
+    },
+    {
+      id: "cloud-computing",
+      label: "Cloud Computing",
+      description: "The delivery of computing services over the internet.",
+      year: 2006,
+      domain: TechnologyDomain.COMPUTING,
+      status: NodeStatus.CURRENT,
+      links: ["internet"]
+    },
+    {
+      id: "containerization",
+      label: "Containerizationwar",
+      description: "A lightweight form of virtualization for packaging applications with dependencies.",
+      year: 2013,
+      domain: TechnologyDomain.COMPUTING,
+      status: NodeStatus.CURRENT,
+      links: ["cloud-computing"]
+    },
+    {
+      id: "edge-computing",
+      label: "Edge Computing",
+      description: "Processing data near the source rather than relying on a centralized cloud.",
+      year: 2016,
+      domain: TechnologyDomain.COMPUTING,
+      status: NodeStatus.EMERGING,
+      links: ["cloud-computing"]
     }
   ],
   edges: []
