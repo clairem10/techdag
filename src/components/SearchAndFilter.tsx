@@ -43,7 +43,8 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
       [TechnologyDomain.COMMUNICATION]: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-800 dark:text-purple-300' },
       [TechnologyDomain.MATERIALS]: { bg: 'bg-indigo-100 dark:bg-indigo-900/30', text: 'text-indigo-800 dark:text-indigo-300' },
       [TechnologyDomain.AI]: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300' },
-      [TechnologyDomain.SPACE]: { bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-800 dark:text-sky-300' }
+      [TechnologyDomain.SPACE]: { bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-800 dark:text-sky-300' },
+      [TechnologyDomain.MATHEMATICS]: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-800 dark:text-orange-300' }
     };
     return colors[domain];
   };

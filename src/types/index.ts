@@ -16,7 +16,8 @@ export enum TechnologyDomain {
   COMMUNICATION = "Communication",
   MATERIALS = "Materials",
   AI = "Artificial Intelligence",
-  SPACE = "Space Technology"
+  SPACE = "Space Technology",
+  MATHEMATICS = "MATHEMATICS"
 }
 
 export enum NodeStatus {

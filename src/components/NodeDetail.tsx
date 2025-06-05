@@ -37,7 +37,8 @@ const NodeDetail: React.FC<NodeDetailProps> = ({ node, onClose, relatedNodes }) 
       [TechnologyDomain.COMMUNICATION]: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
       [TechnologyDomain.MATERIALS]: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300",
       [TechnologyDomain.AI]: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-      [TechnologyDomain.SPACE]: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300"
+      [TechnologyDomain.SPACE]: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300",
+      [TechnologyDomain.MATHEMATICS]: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
     };
     return styles[domain];
   };

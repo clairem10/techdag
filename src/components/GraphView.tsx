@@ -56,7 +56,8 @@ const GraphView: React.FC<GraphViewProps> = ({
       [TechnologyDomain.COMMUNICATION]: '#8B5CF6', // Purple
       [TechnologyDomain.MATERIALS]: '#6366F1', // Indigo
       [TechnologyDomain.AI]: '#EF4444', // Red
-      [TechnologyDomain.SPACE]: '#0EA5E9'  // Sky blue
+      [TechnologyDomain.SPACE]: '#0EA5E9',  // Sky blue
+      [TechnologyDomain.MATHEMATICS]: '#F6AF3B'
     };
     return colors[domain];
   };
@@ -458,10 +459,10 @@ const GraphView: React.FC<GraphViewProps> = ({
   const handleWheel = (e: React.WheelEvent) => {
     if (e.metaKey || e.ctrlKey) {
       e.preventDefault();
-      const scaleAmount = e.deltaY < 0 ? 1.1 : 0.9;
+      const scaleAmount = e.deltaY < 0 ? 1.03 : 0.97;
       setTransform(prev => ({
         ...prev,
-        scale: Math.max(0.5, Math.min(3, prev.scale * scaleAmount))
+        scale: Math.max(0.1, Math.min(10, prev.scale * scaleAmount))
       }));
     }
   };
@@ -470,10 +471,10 @@ const GraphView: React.FC<GraphViewProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     // Only start dragging if clicking on the background (not on a node)
     const target = e.target as Element;
-    const isNodeClick = target.closest('g.node, g[class*="node"], g[data-node-id]') || 
-                       target.closest('g')?.querySelector('title');
+    const isNodeClick = target.closest('g.node, g[class*="node"], g[data-node-id]');
     
     if (e.button === 0 && !isNodeClick) {
+      e.preventDefault();
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
     }
@@ -517,9 +518,9 @@ const GraphView: React.FC<GraphViewProps> = ({
     }
   };
 
-  // Center graph when it first loads - IMPROVED
+  // Center graph when it first loads 
   useEffect(() => {
-    if (graphvizSvg && svgRef.current) {
+    if (graphvizSvg && svgRef.current && transform.scale == 1 && transform.x == 0 && transform.y == 0) {
       // Longer delay to ensure SVG is fully rendered and measured correctly
       setTimeout(() => {
         if (svgRef.current && containerRef.current) {
@@ -567,34 +568,36 @@ const GraphView: React.FC<GraphViewProps> = ({
   }, [graphvizSvg]);
 
   return (
-    <div 
-      ref={containerRef}
+      <div 
+    ref={containerRef}
+    className="w-full h-full overflow-hidden bg-gray-50 dark:bg-gray-900 relative"
+    onWheel={handleWheel}
+    onMouseDown={handleMouseDown}
+    onMouseMove={handleMouseMove}
+    onMouseUp={handleMouseUp}
+    onMouseLeave={handleMouseUp}
+    style={{
+      cursor: isDragging ? 'grabbing' : 'grab',
+    }}
+  >
+    <div
+      className="w-full h-full"
       style={{
-        width: '100%',
-        height: '100%',
-        overflow: 'auto',
-        position: 'relative',}}
-      className="w-full h-full overflow-hidden bg-gray-50 dark:bg-gray-900 relative"
+        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+        transformOrigin: '0 0',
+        transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+        overflow: 'visible',
+        minWidth: '100%',
+        minHeight: '100%',
+        position: 'relative',
+      }}
     >
-      <div
-        className="w-full h-full"
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        style={{
-          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          transformOrigin: '0 0',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-          cursor: isDragging ? 'grabbing' : 'grab'
-        }}
-      >
         <svg
           ref={svgRef}
           className="w-full h-full"
             style={{ 
               pointerEvents: 'all',
+              display: 'block',
               overflow: 'visible',
               minWidth: '100%',
               minHeight: '100%'
@@ -615,7 +618,7 @@ const GraphView: React.FC<GraphViewProps> = ({
         </button>
         <button 
           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-          onClick={() => setTransform(prev => ({ ...prev, scale: Math.max(0.5, prev.scale / 1.2) }))}
+          onClick={() => setTransform(prev => ({ ...prev, scale: Math.max(0.1, prev.scale / 1.2) }))}
         >
           -
         </button>

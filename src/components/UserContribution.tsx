@@ -73,10 +73,6 @@ const UserContribution: React.FC<UserContributionProps> = ({
       newErrors.description = 'Description is required';
     }
     
-    if (isNaN(formData.year) || formData.year < 1800 || formData.year > 2100) {
-      newErrors.year = 'Year must be between 1800 and 2100';
-    }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
