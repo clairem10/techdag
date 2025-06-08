@@ -79,7 +79,7 @@ export const initialData: GraphData = {
       year: 1959,
       domain: TechnologyDomain.AI,
       status: NodeStatus.HISTORICAL,
-      links: ['statistics', 'linear-algebra', 'calculus']
+      links: ['statistics', 'linear-algebra']
     },
     {
       id: "deep-learning",

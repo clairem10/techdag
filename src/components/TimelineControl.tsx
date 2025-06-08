@@ -15,6 +15,7 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
   // Calculate the min and max years from all nodes
   const [minYear, setMinYear] = useState(1900);
   const [maxYear, setMaxYear] = useState(2050);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   useEffect(() => {
     if (nodes.length) {
@@ -25,11 +26,12 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
       setMaxYear(newMaxYear);
       
       // Initialize timeRange to full range if it's still at default values
-      if (timeRange[0] !== newMinYear || timeRange[1] !== newMaxYear) {
+      if (!isInitialized) {
         onTimeRangeChange([newMinYear, newMaxYear]);
+        setIsInitialized(true);
       }
     }
-  }, [nodes, timeRange, onTimeRangeChange]);
+  }, [nodes]);
 
   // Helper to format years as decades for labels
   const formatDecade = (year: number) => {
