@@ -59,6 +59,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       [TechnologyDomain.SPACE]: '#0EA5E9',  // Sky blue
       [TechnologyDomain.MATHEMATICS]: '#F6AF3B'
     };
+
     return colors[domain];
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Node, TechnologyDomain, GraphData } from './types';
 import { graphData } from './data/initialData';
 import GraphView from './components/GraphView';
@@ -6,9 +6,39 @@ import TimelineControl from './components/TimelineControl';
 import SearchAndFilter from './components/SearchAndFilter';
 import NodeDetail from './components/NodeDetail';
 import UserContribution from './components/UserContribution';
-import { Database, CircleUser, Github, MapPin } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LoginModal from './components/auth/LoginModal';
+import AuthButton from './components/auth/AuthButton';
+import { Database, CircleUser, Github, MapPin, Moon, Sun, LogOut } from 'lucide-react';
+import { auth } from './config/firebase';
 
-function App() {
+function AppContent() {
+    let authContextValue;
+  try {
+    authContextValue = useAuth();
+    console.log('useAuth() returned:', authContextValue);
+  } catch (error) {
+    console.error('Error calling useAuth():', error);
+    authContextValue = { currentUser: null };
+  }
+
+  const handleLogout = async () => {
+  try {
+    // Call the logout function from your AuthContext (which uses Firebase signOut)
+    await logout();
+    
+    // Reset relevant state after successful logout
+    setShowContribution(false);
+    setSelectedNode(null);
+    setShowLogin(false);
+    
+    console.log('User logged out successfully');
+  } catch (error) {
+    console.error('Error logging out:', error);
+    // Optionally show an error message to the user
+  }
+};
+
   const [data, setData] = useState<GraphData>(graphData);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [filteredDomains, setFilteredDomains] = useState<TechnologyDomain[]>([]);
@@ -17,6 +47,60 @@ function App() {
   const [showContribution, setShowContribution] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+
+  const { currentUser, logout } = useAuth();
+
+  useEffect(() => {
+    console.log('Auth state changed:', { currentUser, showLogin, showContribution });
+  }, [currentUser, showLogin, showContribution]);
+
+  // Handle login success - watch for currentUser changes
+  useEffect(() => {
+    if (currentUser && showLogin) {
+      // User just logged in
+      setShowLogin(false);
+      setShowContribution(true);
+      setSelectedNode(null);
+    }
+  }, [currentUser, showLogin]);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  const handleContributionAction = () => {
+    if (!currentUser) {
+      setShowLogin(true);
+      return;
+    }
+
+    setShowContribution(true);
+    setSelectedNode(null);
+  }
   
   // Handle search
   const handleSearch = (query: string) => {
@@ -45,6 +129,78 @@ function App() {
     return data.nodes.filter(node => relatedNodeIds.includes(node.id));
   };
   
+  // Handle updating an existing node
+  const handleUpdateNode = (updatedNode: Node) => {
+    setData(prevData => {
+      // Update the node in the nodes array
+      const updatedNodes = prevData.nodes.map(node => 
+        node.id === updatedNode.id ? updatedNode : node
+      );
+      
+      // Handle link changes - remove old edges and add new ones
+      const oldNode = prevData.nodes.find(node => node.id === updatedNode.id);
+      const oldLinks = oldNode?.links || [];
+      const newLinks = updatedNode.links || [];
+      
+      // Remove edges that are no longer linked
+      let updatedEdges = prevData.edges.filter(edge => {
+        // Keep edges that don't involve this node
+        if (edge.source !== updatedNode.id && edge.target !== updatedNode.id) {
+          return true;
+        }
+        // For edges involving this node, only keep if the link still exists
+        const otherNodeId = edge.source === updatedNode.id ? edge.target : edge.source;
+        return newLinks.includes(otherNodeId);
+      });
+      
+      // Add new edges for new links
+      newLinks.forEach(linkedNodeId => {
+        const edgeExists = updatedEdges.some(edge => 
+          (edge.source === updatedNode.id && edge.target === linkedNodeId) ||
+          (edge.source === linkedNodeId && edge.target === updatedNode.id)
+        );
+        
+        if (!edgeExists) {
+          updatedEdges.push({
+            source: updatedNode.id,
+            target: linkedNodeId
+          });
+        }
+      });
+      
+      return {
+        nodes: updatedNodes,
+        edges: updatedEdges
+      };
+    });
+    
+    // Update the selected node to reflect the changes
+    setSelectedNode(updatedNode);
+  };
+  
+  // Handle deleting a node
+  const handleDeleteNode = (nodeId: string) => {
+    setData(prevData => {
+      // Remove the node from the nodes array
+      const updatedNodes = prevData.nodes.filter(node => node.id !== nodeId);
+      
+      // Remove all edges connected to this node
+      const updatedEdges = prevData.edges.filter(edge => 
+        edge.source !== nodeId && edge.target !== nodeId
+      );
+      
+      return {
+        nodes: updatedNodes,
+        edges: updatedEdges
+      };
+    });
+    
+    // Clear the selected node if it was the one being deleted
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  };
+  
   // Handle adding a new node
   const handleAddNode = (newNodeData: Omit<Node, 'id'>) => {
     const newId = `${newNodeData.label.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString(36)}`;
@@ -58,8 +214,8 @@ function App() {
     if (newNodeData.links && newNodeData.links.length > 0) {
       newNodeData.links.forEach(targetId => {
         newEdges.push({
-          source: targetId,
-          target: newId
+          source: newId,
+          target: targetId
         });
       });
     }
@@ -71,6 +227,7 @@ function App() {
     
     // Select the newly added node
     setSelectedNode(newNode);
+    setShowContribution(false); // Close the contribution form
   };
   
   // Filter nodes based on search query
@@ -117,6 +274,9 @@ function App() {
           node={selectedNode} 
           onClose={() => setSelectedNode(null)}
           relatedNodes={getRelatedNodes()}
+          onUpdateNode={handleUpdateNode}
+          onDeleteNode={handleDeleteNode} // Add the delete handler
+          existingNodes={data.nodes}
         />
       ) : (
         showContribution && (
@@ -126,6 +286,19 @@ function App() {
             onClose={() => setShowContribution(false)}
           />
         )
+      )}
+      
+      {/* Add Node Button when no node is selected and contribution form is not shown */}
+      {!selectedNode && !showContribution && (
+        <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+          <p className="mb-4 text-center">Select a node to view details or contribute new knowledge</p>
+          <button
+            onClick={handleContributionAction}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Add New Technology
+          </button>
+        </div>
       )}
     </div>
   );
@@ -142,19 +315,38 @@ function App() {
           
           <div className="hidden md:flex items-center space-x-6">
             <button 
-              onClick={() => setShowContribution(true)}
+              onClick={handleContributionAction}
               className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
             >
               <CircleUser size={18} />
               Contribute
             </button>
-            <a 
-              href="#" 
+            <button
+              onClick={() => window.open('https://github.com/clairem10/techdag#')} 
               className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
             >
               <Github size={18} />
               GitHub
-            </a>
+            </button>
+            <button
+              onClick={toggleDarkMode}
+              className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+              title={isDarkMode ? 'Switch to light mode': 'Switch to dark mode'}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+              {isDarkMode ? 'Light Mode': 'Dark Mode'}
+            </button>
+
+            {currentUser && (
+              <button 
+              onClick={handleLogout}
+              className='flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray 300 hover:text-red-600 dark:hover:text-red-400'
+              title="Logout"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
+            )}
           </div>
           
           {/* Mobile menu button */}
@@ -184,7 +376,7 @@ function App() {
           <div className="md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-2 px-4 space-y-2 animate-fadeIn">
             <button 
               onClick={() => {
-                setShowContribution(true);
+                handleContributionAction();
                 setIsMobileMenuOpen(false);
               }}
               className="flex items-center gap-2 w-full py-2 text-left text-gray-700 dark:text-gray-300"
@@ -211,8 +403,8 @@ function App() {
       
       {/* Main content */}
       <div className="w-full px-2 sm:px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-[600px] md:h-[800px]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden h-[600px] md:h-[800px]">
             {renderMainContent()}
           </div>
           
@@ -277,6 +469,7 @@ function App() {
                 <li>• Click on nodes to view detailed information</li>
                 <li>• Use the timeline to focus on specific time periods</li>
                 <li>• Filter by domain to focus on specific technological areas</li>
+                <li>• Edit nodes by clicking the edit button in node details</li>
               </ul>
             </div>
           </div>
@@ -311,7 +504,29 @@ function App() {
           </div>
         </div>
       </footer>
+
+      {/* Login Modal */}
+      {showLogin && (
+        <LoginModal 
+        isOpen={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSuccess={() => {
+          setShowLogin(false);
+          setShowContribution(true);
+          setSelectedNode(null);
+      }}
+      />
+      )}
     </div>
+  );
+}
+
+// Main App component with AuthProvider wrapper
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
